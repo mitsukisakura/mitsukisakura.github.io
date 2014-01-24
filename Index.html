@@ -1,0 +1,675 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script src="http://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+    <script src="http://ajax.aspnetcdn.com/ajax/knockout/knockout-2.2.1.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/linq.js/2.2.0.2/linq.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.0/jquery.cookie.min.js"></script>
+    <link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!--[if lt IE 9]>
+      <script src="http://cdnjs.cloudflare.com/ajax/libs/json-mask/0.1.1-alpha/jsonMask.min.js"></script>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+        html,
+        body {
+            height: 100%;
+            /* The html and body elements cannot have any padding or margin. */
+        }
+
+        /* Wrapper for page content to push down footer */
+        #wrap {
+            min-height: 100%;
+            height: auto;
+            /* Negative indent footer by its height */
+            margin: 0 auto -60px;
+            /* Pad bottom by footer height */
+            padding: 0 0 60px;
+        }
+
+        /* Set the fixed height of the footer here */
+        #footer {
+            height: 60px;
+            background-color: #f5f5f5;
+        }
+
+        #wrap > .container {
+            padding: 60px 15px 0;
+        }
+
+        .container .text-muted {
+            margin: 20px 0;
+        }
+
+        #footer > .container {
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        code {
+            font-size: 80%;
+        }
+    </style>
+    <style>
+        .price_k {
+            color: blue;
+        }
+
+        .price_w {
+            color: deeppink;
+        }
+
+        .price_m {
+            color: orange;
+        }
+
+        .price_10m {
+            color: red;
+        }
+
+        .price {
+            text-align: right;
+            padding-right: 50px;
+        }
+    </style>
+</head>
+<body>
+    <!-- nav -->
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand">ECO露店</a>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    <li><a href="#favorites">最愛</a></li>
+                    <li class="dropdown" data-bind="visible: SearchResult().length > 0">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">查詢 <b class="caret"></b></a>
+                        <ul class="dropdown-menu" data-bind="foreach: SearchResult">
+                            <li><a data-bind="attr: { href: '#search_result_' + $index() }"><strong data-bind="    text: Keyword"></strong>&nbsp; <span data-bind="    text: '(' + Result.length + ')'"></span></a></li>
+                        </ul>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">設定 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li><a data-bind="click: SwitchFilterEmpty"><span class="glyphicon glyphicon-check" data-bind="    visible: Settings.IsFilterEmpty()"></span>&nbsp;隱藏無資料</a></li>
+                            <!--<li class="divider"></li>-->
+                        </ul>
+                    </li>
+                </ul>
+                <form class="navbar-form  navbar-right" role="search">
+                    <div class="form-group">
+                        <input type="text" class="form-control keyword" placeholder="Search" data-bind="value: Keyword"/>
+                    </div>
+                    <button type="submit" class="btn btn-default" data-bind="click: Search">Submit</button>
+                </form>
+            </div>
+            <!-- /.navbar-collapse -->
+
+        </div>
+    </div>
+
+    <script type="text/html" id="search-result-template">
+        <tr data-bind="click: SwitchDetailShow, visible: !$root.Settings.IsFilterEmpty() || !IsEmpty">
+            <td><span class="glyphicon glyphicon-heart-empty" style="cursor: pointer;" data-bind="    click: $root.AddFavorite, visible: !IsFavorite()"></span><span class="glyphicon glyphicon-heart" style="cursor: pointer;" data-bind="    click: $root.RemoveFavorite, visible: IsFavorite()"></span></td>
+            <td><span data-bind="    text: Name"></span></td>
+            <td class="price"><span data-bind="text: $.numberFormat(MinSellPrice), priceColor: MinSellPrice"></span><span data-bind="    text: ' x' + SellCount, visible: SellCount > 0"></span></td>
+            <td class="price"><span data-bind="text: $.numberFormat(MaxBuyPrice), priceColor: MaxBuyPrice"></span><span data-bind="    text: ' x' + BuyCount, visible: BuyCount > 0"></span></td>
+        </tr>
+        <tr data-bind="if: Sitem, visible: IsShowDetail()" class="warning">
+            <td></td>
+            <td colspan="3">
+                <div data-bind="with: Sitem">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>石像</th>
+                                <th>地點</th>
+                                <th class="price">售價</th>
+                                <th class="price">數量</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr data-bind="visible: Sells.length > 0">
+                                <th colspan="4">販売</th>
+                            </tr>
+                            <!-- ko foreach: Sells -->
+                            <tr class="warning">
+                                <td data-bind="text: $.GolemName(GolemID)"></td>
+                                <td data-bind="text: $.GolemMap(GolemID)"></td>
+                                <td class="price" data-bind="text: $.numberFormat(Price), priceColor: Price"></td>
+                                <td class="price" data-bind="text: Count"></td>
+                            </tr>
+                            <!-- /ko -->
+                            <tr data-bind="visible: Buys.length > 0">
+                                <th colspan="4">買取</th>
+                            </tr>
+                            <!-- ko foreach: Buys -->
+                            <tr class="warning">
+                                <td data-bind="text: $.GolemName(GolemID)"></td>
+                                <td data-bind="text: $.GolemMap(GolemID)"></td>
+                                <td class="price" data-bind="text: $.numberFormat(Price), priceColor: Price"></td>
+                                <td class="price" data-bind="text: Count"></td>
+                            </tr>
+                            <!-- /ko -->
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </script>
+
+    <script type="text/html" id="favorite-item-template">
+        <tr data-bind="click: SwitchDetailShow">
+            <td><span class="glyphicon glyphicon-remove" style="cursor: pointer;" data-bind="    click: $root.RemoveFavorite"></span>&nbsp;<span data-bind="    text: Name"></span></td>
+            <td class="price"><span data-bind="text: $.numberFormat(MinSellPrice), priceColor: MinSellPrice"></span><span data-bind="    text: ' x' + SellCount, visible: SellCount > 0"></span></td>
+            <td class="price"><span data-bind="    text: $.numberFormat(MaxBuyPrice), priceColor: MaxBuyPrice"></span><span data-bind="    text: ' x' + BuyCount, visible: BuyCount > 0"></span></td>
+        </tr>
+        <tr data-bind="if: Sitem, visible: IsShowDetail()" class="warning">
+            <td colspan="3">
+                <div data-bind="with: Sitem">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>ゴーレム名</th>
+                                <th class="price">値段</th>
+                                <th class="price">個数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr data-bind="visible: Sells.length > 0">
+                                <th colspan="3">販売</th>
+                            </tr>
+                            <!-- ko foreach: Sells -->
+                            <tr class="warning">
+                                <td data-bind="text: $.GolemName(GolemID)"></td>
+                                <td class="price" data-bind="text: $.numberFormat(Price), priceColor: Price"></td>
+                                <td class="price" data-bind="text: Count"></td>
+                            </tr>
+                            <!-- /ko -->
+                            <tr data-bind="visible: Buys.length > 0">
+                                <th colspan="3">買取</th>
+                            </tr>
+                            <!-- ko foreach: Buys -->
+                            <tr class="warning">
+                                <td data-bind="text: $.GolemName(GolemID)"></td>
+                                <td class="price" data-bind="text: $.numberFormat(Price), priceColor: Price"></td>
+                                <td class="price" data-bind="text: Count"></td>
+                            </tr>
+                            <!-- /ko -->
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </script>
+
+    <div id="wrap">
+        <div class="container">
+            <div data-bind="visible: false" style="width: 100%; text-align: center;">
+                <img src="http://ajax.googleapis.com/ajax/libs/yui/2.9.0/build/assets/skins/sam/ajax-loader.gif" alt="Loading..." />
+            </div>
+
+            <!-- search result -->
+            <div data-bind="visible: SearchResult().length > 0" style="display: none;">
+                <div data-bind="foreach: SearchResult">
+                    <div class="panel panel-success" data-bind="attr: { id: 'search_result_' + $index() }">
+                        <div class="alert alert-info alert-dismissable" data-bind="click: SwitchShow">
+                            <button type="button" class="close" data-dismiss="alert" aria-hidden="true" data-bind="click: $root.CloseSearchResult">&times;</button>
+                            搜尋結果 : <strong data-bind="    text: Keyword"></strong>&nbsp; <span data-bind="    text: '(' + Result.length + ')'"></span>
+                        </div>
+                        <div class="table-responsive" data-bind="visible: IsShowResult">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>道具</th>
+                                        <th class="price">販売</th>
+                                        <th class="price">買取</th>
+                                    </tr>
+                                </thead>
+                                <tbody data-bind="template: { name: 'search-result-template', foreach: Result }">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- favorites -->
+            <div data-bind="visible: FavoritesView().length > 0" style="display: none;" id="favorites">
+                <div>
+                    <div class="panel panel-primary">
+                        <div class="panel-heading">我的最愛 <span data-bind="text: '(' + FavoritesView().length + ')'"></span></div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>道具</th>
+                                        <th class="price">販売</th>
+                                        <th class="price">買取</th>
+                                    </tr>
+                                </thead>
+                                <tbody data-bind="template: { name: 'favorite-item-template', foreach: FavoritesView }">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <textarea style="width: 100%; height: 200px; margin-top: 300px; display: none;" id="debug"></textarea>
+    </div>
+    <div id="footer">
+        <div class="container">
+            <p class="text-muted" id="status"></p>
+        </div>
+    </div>
+
+
+
+    <script type="text/javascript">
+        //defines 
+        var GolemType = ["ぬる", "販売", "買取"];
+
+        var GolemGroup = ["武器", "防具", "装飾品", "回復薬", "雑貨", "材料", "食品", "人形", "箱", "家具", "その他"];
+
+        var ServerType = ["ルピナス", "クローバー", "フリージア", "ジニア"];
+
+        var MapList = {
+            10023000: "上城",
+            10023001: "演習場",
+            10023100: "東橋",
+            10023200: "西橋",
+            10023300: "南橋",
+            10023400: "北橋",
+            10024000: "下城",
+            10025000: "東平原",
+            10022000: "西平原",
+            10031000: "南平原",
+            10014000: "北平原",
+            0: "unknown"
+        };
+
+        var GID = "gid";
+        var GMAPID = 0;
+        var GTYPE = 1;
+        var GGROUP = 2;
+        var GNAME = 3;
+        var GCOMMENT = 4;
+        var GCOMMENT2 = 5;
+        var GELEM = "elem";
+
+        var SIID = "iid";
+        var SIGID = 0;
+        var SITYPE = 1;
+        var SIFUSION = 2;
+        var SICOUNT = 3;
+        var SIPRICE = 4;
+        var SICOMMENT = 5;
+
+        var IID = "iid";
+        var INAME = 1;
+        var IICON = 0;
+        var IELEM = "elem";
+
+        function ConvertToItems(src) {
+            var ret = {};
+            $.each(src, function (i, x) {
+                ret[i] = {
+                    ItemID: i,
+                    Name: x[INAME]
+                };
+            });
+            return ret;
+        }
+
+        function ConvertToGolems(src) {
+            var ret = {};
+            function GetMapName(MapID) {
+                var Name = MapList[MapID];
+                if (!$.isNullOrEmpty(Name)) {
+                    return Name;
+                }
+                return "未知";
+            }
+            $.each(src, function (i, x) {
+                ret[i] = {
+                    GolemID: i,
+                    Map: GetMapName(x[GMAPID]),
+                    Type: x[GTYPE],
+                    Name: x[GNAME],
+                    Comment: x[GCOMMENT],
+                    Comment2: x[GCOMMENT2]
+                };
+            });
+            return ret;
+        }
+
+        function CreateSItem(i, s) {
+            return {
+                ItemID: i,
+                GolemID: s[SIGID],
+                Type: s[SITYPE],
+                Count: s[SICOUNT],
+                Price: s[SIPRICE],
+                Comment: s[SICOMMENT]
+            };
+        }
+
+        function ConvertToSitems(src) {
+            var ret = {};
+            $.each(src, function (i, x) {
+                var r =
+                    {
+                        Buys: new Array(),
+                        Sells: new Array()
+                    };
+                $.each(x, function (ix, si) {
+                    var item = CreateSItem(i, si);
+                    if (item.Type == 1) {
+                        r.Sells.push(item);
+                    } else {
+                        r.Buys.push(item);
+                    }
+                });
+                r.Sells = Enumerable.From(r.Sells).OrderBy(function (x) { return x.Price; }).ToArray();
+                r.Buys = Enumerable.From(r.Buys).OrderByDescending(function (x) { return x.Price; }).ToArray();
+
+                r.MaxBuyPrice = (r.Buys.length == 0) ? 0 : Enumerable.From(r.Buys).Max(function (x) { return x.Price; });
+                r.MinSellPrice = (r.Sells.length == 0) ? 0 : Enumerable.From(r.Sells).Min(function (x) { return x.Price; });
+                ret[i] = r;
+            });
+            return ret;
+        }
+
+    </script>
+
+    <script type="text/javascript">
+        function DebugOut(str) {
+            $("#debug")[0].value += str + "\r\n";
+            $('#status').html(str);
+        }
+
+        function ajax(option, callback) {
+            DebugOut(option.url);
+            $.ajax(option).done(callback);
+        }
+
+        var vm = null;
+
+        (function () {
+            $.extend({
+                GolemName: function (GolemID) {
+                    var name = '';
+                    var g = vm.Golems[GolemID];
+                    if (g != null) {
+                        name = g.Name;
+                    }
+                    return name;
+                },
+                GolemMap: function (GolemID) {
+                    var map = '';
+                    var g = vm.Golems[GolemID];
+                    if (g != null) {
+                        map = g.Map;
+                    }
+                    return map;
+                },
+                isNullOrEmpty: function (value) {
+                    return value == undefined || value == null || value == '';
+                },
+                isNullOrUndefined: function (value) {
+                    return value == undefined || value == null;
+                },
+                numberFormat: function (num) {
+                    //数値を','区切り
+                    var ret = "";
+                    var str = "" + num;
+                    if (str.length < 3) {
+                        return str;
+                    }
+                    while (str.length % 3) {
+                        str = "0" + str;
+                    }
+                    for (var i = 0; i < str.length; i += 3) {
+                        if (i != 0) {
+                            ret += ",";
+                        }
+                        ret += str.substr(i, 3);
+                    }
+                    return ret.replace(/^0+/, "");
+                },
+                dateFormat: function (d) {
+                    return date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate();
+                }
+            });
+
+            ko.bindingHandlers.priceColor = {
+                update: function (element, valueAccessor, allBindings) {
+                    // First get the latest data that we're bound to
+                    var value = valueAccessor();
+
+                    // Next, whether or not the supplied model property is observable, get its current value
+                    var valueUnwrapped = ko.utils.unwrapObservable(value);
+
+                    // Now manipulate the DOM element
+                    if (valueUnwrapped >= 1000 && valueUnwrapped <= 9999) {
+                        $(element).addClass("price_k");
+                    } else if (valueUnwrapped >= 10000 && valueUnwrapped <= 99999) {
+                        $(element).addClass("price_w");
+                    } else if (valueUnwrapped >= 1000000 && valueUnwrapped <= 9999999) {
+                        $(element).addClass("price_m");
+                    } else if (valueUnwrapped >= 10000000) {
+                        $(element).addClass("price_10m");
+                    }
+                }
+            };
+            ko.bindingHandlers.enter = {
+                init: function (element, valueAccessor, allBindingsAccessor, data) {
+                    //wrap the handler with a check for the enter key
+                    var wrappedHandler = function (data, event) {
+                        if (event.keyCode === 13) {
+                            valueAccessor().call(this, data, event);
+
+                        }
+                    };
+                    //call the real event binding for 'keyup' with our wrapped handler
+                    //ko.bindingHandlers.event.init(element, function () { return { keyup: wrappedHandler }; }, allBindingsAccessor, data);
+                }
+            };
+        }());
+
+        $(document).ready(function () {
+            vm = {
+                //settings
+                Settings :{
+                    IsFilterEmpty: ko.observable(false)
+                },
+                SwitchFilterEmpty: function () { vm.Settings.IsFilterEmpty(!vm.Settings.IsFilterEmpty()); SaveSetting(); },
+
+                //search
+                Keyword: ko.observable(),
+                Search: Search,
+                SearchResult: ko.observableArray(),
+                CloseSearchResult: CloseSearchResult,
+                SearchSubmit: SearchSubmit,
+
+                //favorite
+                Favorites: ko.observableArray(),
+                FavoritesView: ko.observableArray(),
+                AddFavorite: AddFavorite,
+                RemoveFavorite: RemoveFavorite
+            };
+
+            var CookieSetting = $.cookie('settings');
+            if (!$.isNullOrEmpty(CookieSetting)) {
+                var s = JSON.parse(CookieSetting);
+                vm.Settings.IsFilterEmpty(s.IsFilterEmpty);
+            }
+            function SaveSetting() {
+                $.cookie('settings', ko.toJSON(vm.Settings));
+            }
+
+
+            function DataReady() {
+
+                var CookieFavorite = $.cookie('favorites');
+                if (!$.isNullOrEmpty(CookieFavorite)) {
+                    vm.Favorites(CookieFavorite.split(','));
+                }
+                ko.computed(function () {
+                    $.cookie('favorites', vm.Favorites());
+                    CreateFavoritesView();
+                });
+
+                ko.applyBindings(vm);
+
+                $(".keyword").keypress(function (evt) {
+                    //Deterime where our character code is coming from within the event
+                    var charCode = evt.charCode || evt.keyCode;
+                    if (charCode == 13) { //Enter key's keycode
+                        SearchSubmit();
+                        return false;
+                    }
+                });
+
+                DebugOut('Ready');
+            }
+
+            ajax({
+                url: 'http://ecocc.wkeya.com/min/?f=shop/js/itemlist.js',
+                dataType: "script",
+                cache: true,
+            }, function () {
+                vm.Items = ConvertToItems(iteminit());
+                ajax({
+                    url: 'http://ecocc.wkeya.com/min/?f=shop/data/golem2.js,shop/data/sitem2.js',
+                    dataType: "script",
+                    cache: true,
+                }, function () {
+                    vm.Golems = ConvertToGolems(goleminit());
+                    vm.Sitems = ConvertToSitems(siteminit());
+
+                    DataReady();
+                });
+            });
+        });
+
+        function CloseSearchResult(data, event) {
+            var index = vm.SearchResult.indexOf(data);
+            if (index > -1) {
+                vm.SearchResult.splice(index, 1);
+            }
+        }
+
+        function IsFavorite(ItemID) {
+            return $.inArray(ItemID, vm.Favorites()) > -1;
+        }
+
+        function CreateResultItem(id) {
+            var x = vm.Items[id];
+            var si = vm.Sitems[id];
+            var r = undefined;
+            if (si != null) {
+                r = {
+                    ItemID: id,
+                    Name: x.Name,
+                    BuyCount: si.Buys.length,
+                    SellCount: si.Sells.length,
+                    MaxBuyPrice: si.MaxBuyPrice,
+                    MinSellPrice: si.MinSellPrice,
+                    IsFavorite: ko.observable(IsFavorite(id)),
+                    IsEmpty: si.Buys.length == 0 && si.Sells.length == 0,
+                    Sitem: si
+                };
+            } else {
+                r = {
+                    ItemID: id,
+                    Name: x.Name,
+                    BuyCount: 0,
+                    SellCount: 0,
+                    MaxBuyPrice: '-',
+                    MinSellPrice: '-',
+                    IsFavorite: ko.observable(IsFavorite(id)),
+                    IsEmpty: true,
+                    Sitem: null
+                };
+            }
+            $.extend(r, {
+                IsShowDetail: ko.observable(false),
+                SwitchDetailShow: function (data, event) {
+                    r.IsShowDetail(!r.IsShowDetail());
+                }
+            });
+            return r;
+        }
+
+        function SearchSubmit() {
+            Search();
+            return false;
+        }
+
+        function Search() {
+            var k = vm.Keyword();
+            var result = new Array();
+            $.each(vm.Items, function (i, x) {
+                if (x.Name.indexOf(k) >= 0) {
+                    var id = x.ItemID;
+                    result.push(CreateResultItem(id));
+                }
+            });
+            vm.SearchResult.splice(0, 0, {
+                Keyword: k,
+                Result: result,
+                IsShowResult: ko.observable(true),
+                SwitchShow: function () {
+                    this.IsShowResult(!this.IsShowResult());
+                }
+            });
+        }
+
+        function AddFavorite(data, event) {
+            vm.Favorites.push(data.ItemID);
+            data.IsFavorite(true);
+            event.stopImmediatePropagation();
+        }
+
+        function RemoveFavorite(data, event) {
+            vm.Favorites.remove(function (x) {
+                return x == data.ItemID;
+            });
+            data.IsFavorite(false);
+            event.stopImmediatePropagation();
+        }
+
+        function CreateFavoritesView() {
+            vm.FavoritesView.removeAll();
+            $.each(vm.Favorites(), function (index, ItemID) {
+                var r = CreateResultItem(ItemID);
+
+                vm.FavoritesView.push(r);
+            });
+        }
+
+      
+    </script>
+    <script src="http://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+</body>
+</html>
+
