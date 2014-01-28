@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <title></title>
+    <title>ECO露店</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
     <script src="http://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
@@ -523,7 +523,7 @@
                 vm.Settings.IsFilterEmpty(s.IsFilterEmpty);
             }
             function SaveSetting() {
-                $.cookie('settings', ko.toJSON(vm.Settings));
+                $.cookie('settings', ko.toJSON(vm.Settings), { expires: 3650 });
             }
 
 
@@ -534,7 +534,7 @@
                     vm.Favorites(CookieFavorite.split(','));
                 }
                 ko.computed(function () {
-                    $.cookie('favorites', vm.Favorites());
+                    $.cookie('favorites', vm.Favorites(), { expires: 3650 });
                     CreateFavoritesView();
                 });
 
